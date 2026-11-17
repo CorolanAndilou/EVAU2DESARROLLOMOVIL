@@ -1,0 +1,91 @@
+// Estilos base
+#container {
+  text-align: center;
+
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+// Ajustes de texto del contenedor
+#container strong {
+  font-size: 20px;
+  line-height: 26px;
+}
+
+#container p {
+  font-size: 16px;
+  line-height: 22px;
+
+  color: #8c8c8c;
+
+  margin: 0;
+}
+
+// Enlaces sin subrayado dentro del contenedor
+#container a {
+  text-decoration: none;
+}
+
+// Colores de la paleta rosada
+:host {
+  --app-page-background: #fff7fa;
+  --app-header-background: #fce8ef;
+  --app-card-background: #ffffff;
+  --app-text-color: #49313b;
+  --app-heading-color: #8f3f60;
+  --app-muted-color: #806b74;
+  --app-border-color: #f0d5df;
+}
+
+// Fondo y texto de la página y la barra superior
+ion-content {
+  --background: var(--app-page-background);
+}
+
+ion-toolbar {
+  --background: var(--app-header-background);
+  --color: var(--app-heading-color);
+}
+
+// Colores de las filas, campos y lista
+ion-item {
+  --background: var(--app-card-background);
+  --color: var(--app-text-color);
+  --border-color: var(--app-border-color);
+}
+
+ion-input {
+  --placeholder-color: var(--app-muted-color);
+  --placeholder-opacity: 1;
+  --highlight-color-valid: var(--ion-color-primary);
+}
+
+ion-list {
+  background: transparent;
+}
+
+// Colores de títulos y descripciones
+h1,
+h3 {
+  color: var(--app-heading-color);
+}
+
+ion-label p {
+  color: var(--app-muted-color);
+}
+
+// Sustituye la paleta por tonos oscuros cuando el dispositivo usa modo oscuro
+@media (prefers-color-scheme: dark) {
+  :host {
+    --app-page-background: #21191d;
+    --app-header-background: #35232c;
+    --app-card-background: #2b2026;
+    --app-text-color: #f5e8ed;
+    --app-heading-color: #f0a2be;
+    --app-muted-color: #d2b9c3;
+    --app-border-color: #4a333e;
+  }
+}

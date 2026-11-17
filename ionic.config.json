@@ -1,0 +1,7 @@
+{
+  "name": "EVAU2_LEON_PAULA",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
