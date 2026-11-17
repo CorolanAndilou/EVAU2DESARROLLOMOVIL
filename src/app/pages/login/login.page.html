@@ -1,0 +1,33 @@
+<ion-content class="ion-padding">
+
+  <h1>Iniciar sesión</h1>
+
+  <ion-item>
+    <ion-label position="stacked">Correo electrónico</ion-label>
+    <ion-input
+      type="email"
+      [(ngModel)]="email"
+      placeholder="Ingresa tu correo">
+    </ion-input>
+  </ion-item>
+
+  <ion-item>
+    <ion-label position="stacked">Contraseña</ion-label>
+    <ion-input
+      type="password"
+      [(ngModel)]="password"
+      placeholder="Ingresa tu contraseña">
+    </ion-input>
+  </ion-item>
+
+  <ion-button expand="block" (click)="login()">
+    Iniciar sesión
+  </ion-button>
+
+  <p *ngIf="errorMessage">{{ errorMessage }}</p>
+
+  <ion-button expand="block" fill="clear" (click)="goToRegister()">
+    Crear una cuenta
+  </ion-button>
+
+</ion-content>

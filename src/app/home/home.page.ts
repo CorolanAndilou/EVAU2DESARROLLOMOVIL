@@ -5,6 +5,8 @@ import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel
 import { addIcons } from 'ionicons';
 import { trashOutline, addOutline, pencilOutline } from 'ionicons/icons';
 import { Task } from '../task.model';
+import { Router } from '@angular/router';
+import { AuthService } from '../core/services/auth.service';
 
 // Configura el componente y los elementos de Ionic que utiliza la página.
 @Component({
@@ -29,6 +31,12 @@ import { Task } from '../task.model';
   ],
 })
 export class HomePage {
+
+  async logout() {
+    await this.authService.logout();
+    await this.router.navigate(['/login']);
+  }
+
   // Tareas que se muestran en la lista.
   task: Task[] = [
     {
@@ -50,9 +58,12 @@ export class HomePage {
   // ID de la tarea en edición; null indica que se está creando una tarea.
   editingTaskId: number | null = null;
 
-  constructor() {
-    // Registra los iconos que aparecen en la plantilla.
+  //constructor con autenticador
+
+  constructor (private authService: AuthService, private router: Router,){
+
     addIcons({ trashOutline, addOutline, pencilOutline });
+
   }
 
   // Agrega una tarea o guarda los cambios de la tarea seleccionada.
