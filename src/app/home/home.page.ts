@@ -1,12 +1,30 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common'; // se importan 2 nuevos modulos de angular
+
+import { Component, ChangeDetectorRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonInput, IonButton, IonIcon, IonItemSliding } from '@ionic/angular';
+
+import {
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonContent,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonInput,
+  IonButton,
+  IonIcon,
+  IonItemSliding,
+} from '@ionic/angular';
+
 import { addIcons } from 'ionicons';
 import { trashOutline, addOutline, pencilOutline } from 'ionicons/icons';
+
 import { Task } from '../task.model';
 import { Router } from '@angular/router';
+
 import { AuthService } from '../core/services/auth.service';
+import { TaskService } from '../core/services/task.service';
 
 // Configura el componente y los elementos de Ionic que utiliza la página.
 @Component({
@@ -27,77 +45,142 @@ import { AuthService } from '../core/services/auth.service';
     IonItem,
     IonButton,
     IonIcon,
-    IonItemSliding
+    IonItemSliding,
   ],
 })
 export class HomePage {
 
-  async logout() {
-    await this.authService.logout();
-    await this.router.navigate(['/login']);
-  }
+  // Lista de tareas correspondientes al usuario autenticado.
+  task: Task[] = [];
 
-  // Tareas que se muestran en la lista.
-  task: Task[] = [
-    {
-      id: 1,
-      title: 'Ejemplo uno',
-      description: "Descripcion del ejemplo uno"
-    },
-    {
-      id: 2,
-      title: 'Ejemplo dos',
-      description: "Descripcion del ejemplo dos"
-    }
-  ];
+  // Identificador del usuario que tiene la sesión activa.
+  currentUserId: string | null = null;
 
   // Valores enlazados con los campos del formulario.
-  newTitle: string = "";
-  newDescription: string = "";
+  newTitle = '';
+  newDescription = '';
 
   // ID de la tarea en edición; null indica que se está creando una tarea.
   editingTaskId: number | null = null;
 
-  //constructor con autenticador
+  constructor(
+  private authService: AuthService,
+  private taskService: TaskService,
+  private router: Router,
+  private cdr: ChangeDetectorRef,
+) {
+  addIcons({ trashOutline, addOutline, pencilOutline });
+}
 
-  constructor (private authService: AuthService, private router: Router,){
+  /**
+   * Se ejecuta cada vez que Ionic muestra la página.
+   * Recupera la sesión y carga las tareas del usuario.
+   */
+  async ionViewWillEnter() {
 
-    addIcons({ trashOutline, addOutline, pencilOutline });
+    const session = await this.authService.getCurrentSession();
 
-  }
-
-  // Agrega una tarea o guarda los cambios de la tarea seleccionada.
-  addTask() {
-    if (this.newTitle.trim() === "" || this.newDescription.trim() === "") {
+    // Si no existe una sesión válida, vuelve al Login.
+    if (!session) {
+      await this.router.navigate(['/login']);
       return;
     }
+
+    this.currentUserId = session.userId;
+
+    // Recupera solamente las tareas del usuario actual.
+    this.task = await this.taskService.getTasks(this.currentUserId);
+    // Actualiza la vista después de recuperar las tareas.
+this.cdr.detectChanges();
+
+    // Limpia el formulario al entrar a Home.
+    this.cancelEdit();
+  }
+
+  /**
+   * Cierra la sesión y regresa a la pantalla de Login.
+   */
+  async logout() {
+
+    await this.authService.logout();
+
+    this.currentUserId = null;
+    this.task = [];
+
+    this.cancelEdit();
+
+    await this.router.navigate(['/login']);
+  }
+
+  /**
+   * Agrega una tarea o guarda los cambios de una tarea existente.
+   */
+  async addTask() {
+
+    // El título es obligatorio, pero la descripción es opcional.
+if (!this.currentUserId || !this.newTitle.trim()) {
+  return;
+}
+
     if (this.editingTaskId !== null) {
-      this.task = this.task.map(task =>
-        task.id === this.editingTaskId
-          ? { ...task, title: this.newTitle, description: this.newDescription }
-          : task
+
+      // Actualiza la tarea verificando también su propietario.
+      const updatedTask: Task = {
+        id: this.editingTaskId,
+        userId: this.currentUserId,
+        title: this.newTitle.trim(),
+        description: this.newDescription.trim(),
+      };
+
+      await this.taskService.updateTask(
+        this.currentUserId,
+        updatedTask,
       );
+
     } else {
-      this.task.push({
+
+      // Construye una tarea asociada al usuario actual.
+      const newTask: Task = {
         id: Date.now(),
-        title: this.newTitle,
-        description: this.newDescription
-      });
+        userId: this.currentUserId,
+        title: this.newTitle.trim(),
+        description: this.newDescription.trim(),
+      };
+
+      await this.taskService.addTask(newTask);
     }
 
-    // Limpia el formulario y finaliza el modo de edición.
-    this.newTitle = "";
-    this.newDescription = "";
-    this.editingTaskId = null;
+    // Actualiza la lista después de guardar los cambios.
+    this.task = await this.taskService.getTasks(this.currentUserId);
+
+    this.cancelEdit();
   }
 
-  // Quita de la lista la tarea que coincide con el ID recibido.
-  deleteTask(id: number) {
-    this.task = this.task.filter(task => task.id !== id);
+  /**
+   * Elimina una tarea perteneciente al usuario actual.
+   */
+  async deleteTask(id: number) {
+
+    if (!this.currentUserId) {
+      return;
+    }
+
+    await this.taskService.deleteTask(this.currentUserId, id);
+
+    // Actualiza la lista después de eliminar la tarea.
+    this.task = await this.taskService.getTasks(this.currentUserId);
   }
 
-  // Carga los datos de la tarea en el formulario para editarlos.
+  /**
+   * Carga los datos de una tarea en el formulario para editarlos.
+   */
   editTask(task: Task) {
+
+    // Impide editar tareas de otra cuenta.
+    if (!this.currentUserId || task.userId !== this.currentUserId) {
+      return;
+    }
+
     if (this.editingTaskId === task.id) {
       this.cancelEdit();
       return;
@@ -108,10 +191,12 @@ export class HomePage {
     this.editingTaskId = task.id;
   }
 
-  // Descarta la edición y deja el formulario vacío.
+  /**
+   * Descarta la edición y deja el formulario vacío.
+   */
   cancelEdit() {
-    this.newTitle = "";
-    this.newDescription = "";
+    this.newTitle = '';
+    this.newDescription = '';
     this.editingTaskId = null;
   }
 }

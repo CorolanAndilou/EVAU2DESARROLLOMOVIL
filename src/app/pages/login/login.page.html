@@ -1,3 +1,4 @@
+
 <ion-content class="ion-padding">
 
   <h1>Iniciar sesión</h1>
@@ -24,7 +25,9 @@
     Iniciar sesión
   </ion-button>
 
-  <p *ngIf="errorMessage">{{ errorMessage }}</p>
+  <p *ngIf="errorMessage" style="color: var(--ion-color-danger);">
+    {{ errorMessage }}
+  </p>
 
   <ion-button expand="block" fill="clear" (click)="goToRegister()">
     Crear una cuenta

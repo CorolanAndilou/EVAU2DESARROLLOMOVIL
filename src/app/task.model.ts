@@ -1,6 +1,9 @@
+
 // Define los datos que componen una tarea.
-export interface Task{
-id: number;
-title: string;
-description: string;
+
+export interface Task {
+  id: number;
+  userId: string;
+  title: string;
+  description: string;
 }
