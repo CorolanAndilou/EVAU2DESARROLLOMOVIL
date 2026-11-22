@@ -1,8 +1,7 @@
-import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-
 import {
   IonContent,
   IonInput,
@@ -17,6 +16,7 @@ import { AuthService } from '../../core/services/auth.service';
   selector: 'app-register',
   templateUrl: './register.page.html',
   styleUrls: ['./register.page.scss'],
+  standalone: true,
   imports: [
     CommonModule,
     FormsModule,
@@ -28,6 +28,9 @@ import { AuthService } from '../../core/services/auth.service';
   ],
 })
 export class RegisterPage {
+  private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
   name = '';
   email = '';
   password = '';
@@ -35,12 +38,7 @@ export class RegisterPage {
   errorMessage = '';
   successMessage = '';
 
-  constructor(
-    private authService: AuthService,
-    private router: Router,
-  ) {}
-
-  async register() {
+  async register(): Promise<void> {
     this.errorMessage = '';
     this.successMessage = '';
 
@@ -67,7 +65,7 @@ export class RegisterPage {
     }
   }
 
-  goToLogin() {
-    this.router.navigate(['/login']);
+  goToLogin(): void {
+    void this.router.navigate(['/login']);
   }
 }
