@@ -1,3 +1,4 @@
+
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>
@@ -7,9 +8,13 @@
 </ion-header>
 
 <ion-content [fullscreen]="true" class="ion-padding">
+
   <!-- Formulario para crear una tarea o editar la seleccionada. -->
   <div style="margin-bottom: 20px;">
-    <h3>{{ editingTaskId !== null ? 'Editando tarea' : 'Agregar una nueva tarea al listado' }}</h3>
+
+    <h3>
+      {{ editingTaskId !== null ? 'Editando tarea' : 'Agregar una nueva tarea al listado' }}
+    </h3>
 
     <!-- Campo para ingresar el título de la tarea. -->
     <ion-item>
@@ -18,8 +23,7 @@
         labelPlacement="floating"
         [(ngModel)]="newTitle"
         placeholder="Ingrese la tarea que quiere realizar"
-      >
-      </ion-input>
+      ></ion-input>
     </ion-item>
 
     <!-- Campo para ingresar la descripción de la tarea. -->
@@ -29,9 +33,52 @@
         labelPlacement="floating"
         [(ngModel)]="newDescription"
         placeholder="Describa la tarea"
-      >
-      </ion-input>
+      ></ion-input>
     </ion-item>
+
+    <!-- Opciones para seleccionar una imagen. -->
+    <div class="image-section">
+
+      <h4>Imagen de la tarea</h4>
+
+      <!-- Abre la cámara del dispositivo. -->
+      <ion-button
+        expand="block"
+        fill="outline"
+        (click)="takePicture()"
+      >
+        Tomar fotografía
+      </ion-button>
+
+      <!-- Abre la galería del dispositivo. -->
+      <ion-button
+        expand="block"
+        fill="outline"
+        (click)="selectPicture()"
+      >
+        Seleccionar desde galería
+      </ion-button>
+
+      <!-- Muestra errores al cargar una imagen. -->
+      @if (imageErrorMessage) {
+        <p class="image-error">
+          {{ imageErrorMessage }}
+        </p>
+      }
+
+      <!-- Vista previa de la imagen seleccionada. -->
+      @if (imagePreview) {
+        <div class="image-preview">
+          <p>Vista previa:</p>
+          <img [src]="imagePreview" alt="Vista previa de la imagen de la tarea"/>
+          <ion-button expand="block" fill="outline" color="danger" (click)="removeImage()">
+            <ion-icon slot="start" name="trash-outline"></ion-icon>
+            Quitar imagen
+          </ion-button>
+        </div>
+      }
+
+    </div>
 
     <!-- Guarda la tarea nueva o los cambios realizados. -->
     <ion-button
@@ -39,13 +86,11 @@
       (click)="addTask()"
       class="ion-margin-top"
     >
-      <ion-icon
-        slot="start"
-        name="add-outline"
-      ></ion-icon>
+      <ion-icon slot="start" name="add-outline"></ion-icon>
       {{ editingTaskId !== null ? 'Guardar cambios' : 'Agregar tarea' }}
     </ion-button>
 
+    <!-- Cancela la edición y descarta los cambios temporales. -->
     @if (editingTaskId !== null) {
       <ion-button
         expand="block"
@@ -55,21 +100,59 @@
         Cancelar
       </ion-button>
     }
+
   </div>
 
   <!-- Lista de tareas con opciones para editar y eliminar. -->
   <h3 class="titulo-seccion">Listado de tareas ingresadas</h3>
 
   <ion-list>
-    <!-- Cada tarea se identifica por su ID para actualizar la lista. -->
+
+    <!-- Cada tarea se identifica por su ID. -->
     @for (task of task; track task.id) {
+
       <ion-item-sliding>
+
         <ion-item>
+
           <ion-label>
+
             <h2>
               <strong>{{ task.title }}</strong>
             </h2>
+
             <p>{{ task.description }}</p>
+
+            <!-- Muestra la fecha y hora de creación de la tarea. -->
+            @if (task.createdAt) {
+              <p class="task-date">
+                <ion-icon name="calendar-outline"></ion-icon>
+                Creada: {{ task.createdAt | date:'dd/MM/yyyy HH:mm' }}
+              </p>
+            } @else {
+              <p class="task-date">
+                Fecha de creación no disponible
+              </p>
+            }
+
+            <!-- Muestra las coordenadas GPS o indica que no están disponibles. -->
+            @if (task.latitude !== undefined && task.longitude !== undefined) {
+            <p class="task-location">
+              <ion-icon name="location-outline"></ion-icon>
+              Ubicación: {{ task.latitude | number:'1.5-5' }},
+              {{ task.longitude | number:'1.5-5' }}
+            </p>
+            } @else {
+            <p class="task-location">
+              <ion-icon name="location-outline"></ion-icon>
+              Ubicación desconocida
+            </p>
+            }
+            <!-- Muestra la imagen guardada, si la tarea tiene una. -->
+            @if (taskImages[task.id]) {
+              <img [src]="taskImages[task.id]" alt="Imagen de la tarea" class="task-image"/>
+            }
+                    
           </ion-label>
 
           <!-- Abre la tarea en el formulario de edición. -->
@@ -88,13 +171,24 @@
             fill="clear"
             (click)="deleteTask(task.id)"
           >
-            <ion-icon
-              slot="icon-only"
-              name="trash-outline"
-            ></ion-icon>
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
           </ion-button>
+
         </ion-item>
+
       </ion-item-sliding>
+
     }
+
   </ion-list>
+
+  <!-- Cierra la sesión del usuario actual. -->
+  <ion-button
+    expand="block"
+    color="danger"
+    (click)="logout()"
+  >
+    Cerrar sesión
+  </ion-button>
+
 </ion-content>

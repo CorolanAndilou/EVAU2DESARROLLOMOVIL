@@ -1,10 +1,34 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common'; // se importan 2 nuevos modulos de angular
+
+import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonInput, IonButton, IonIcon, IonItemSliding } from '@ionic/angular';
+import { Router } from '@angular/router';
+import {
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonContent,
+  IonList,
+  IonItem,
+  IonLabel,
+  IonInput,
+  IonButton,
+  IonIcon,
+  IonItemSliding,
+} from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { trashOutline, addOutline, pencilOutline } from 'ionicons/icons';
-import { Task } from '../task.model';
+import {
+  addOutline,
+  pencilOutline,
+  trashOutline,
+  locationOutline,
+} from 'ionicons/icons';
+
+import { AuthService } from '../core/services/auth.service';
+import { ImageService } from '../core/services/image.service';
+import { LocationService } from '../core/services/location.service';
+import { TaskService } from '../core/services/task.service';
+import type { Task } from '../task.model';
 
 // Configura el componente y los elementos de Ionic que utiliza la página.
 @Component({
@@ -25,82 +49,374 @@ import { Task } from '../task.model';
     IonItem,
     IonButton,
     IonIcon,
-    IonItemSliding
+    IonItemSliding,
   ],
 })
 export class HomePage {
-  // Tareas que se muestran en la lista.
-  task: Task[] = [
-    {
-      id: 1,
-      title: 'Ejemplo uno',
-      description: "Descripcion del ejemplo uno"
-    },
-    {
-      id: 2,
-      title: 'Ejemplo dos',
-      description: "Descripcion del ejemplo dos"
-    }
-  ];
+
+  // Inyección de los servicios y dependencias necesarios.
+  private readonly authService = inject(AuthService);
+  private readonly taskService = inject(TaskService);
+  private readonly imageService = inject(ImageService);
+  private readonly router = inject(Router);
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly locationService = inject(LocationService);
+
+  // Lista de tareas correspondientes al usuario autenticado.
+  task: Task[] = [];
+
+  // Identificador del usuario que tiene la sesión activa.
+  currentUserId: string | null = null;
 
   // Valores enlazados con los campos del formulario.
-  newTitle: string = "";
-  newDescription: string = "";
+  newTitle = '';
+  newDescription = '';
 
   // ID de la tarea en edición; null indica que se está creando una tarea.
   editingTaskId: number | null = null;
 
+  // Imagen seleccionada para la tarea que se está creando o editando.
+  imagePreview: string | null = null;
+  selectedImagePath: string | null = null;
+
+  // Conserva la imagen original mientras se edita una tarea.
+  private originalImagePath: string | null = null;
+
+  // Direcciones de las imágenes que se mostrarán en el listado.
+  taskImages: Record<number, string> = {};
+
+  // Mensaje para informar errores relacionados con imágenes.
+  imageErrorMessage = '';
+
   constructor() {
-    // Registra los iconos que aparecen en la plantilla.
-    addIcons({ trashOutline, addOutline, pencilOutline });
+    addIcons({ trashOutline, addOutline, pencilOutline, locationOutline });
   }
 
-  // Agrega una tarea o guarda los cambios de la tarea seleccionada.
-  addTask() {
-    if (this.newTitle.trim() === "" || this.newDescription.trim() === "") {
+  /**
+   * Se ejecuta cada vez que Ionic muestra la página.
+   * Recupera la sesión y carga las tareas del usuario.
+   */
+  async ionViewWillEnter(): Promise<void> {
+    const session = await this.authService.getCurrentSession();
+
+    // Si no existe una sesión válida, vuelve al Login.
+    if (!session) {
+      await this.router.navigate(['/login']);
       return;
     }
+
+    this.currentUserId = session.userId;
+
+    // Recupera solamente las tareas del usuario actual.
+    this.task = await this.taskService.getTasks(this.currentUserId);
+
+    // Limpia el formulario al entrar a Home.
+    await this.cancelEdit();
+
+    // Recupera las imágenes asociadas a las tareas.
+    await this.loadTaskImages();
+
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Carga las imágenes guardadas de todas las tareas del usuario.
+   * Convierte las rutas almacenadas en direcciones que puede mostrar HTML.
+   */
+  private async loadTaskImages(): Promise<void> {
+    const images: Record<number, string> = {};
+
+    for (const task of this.task) {
+
+      // Omite las tareas que no tienen una imagen guardada.
+      if (!task.imagePath) {
+        continue;
+      }
+
+      try {
+        // Convierte la ruta local en una dirección visible para la aplicación.
+        images[task.id] = await this.imageService.getPicture(
+          task.imagePath,
+        );
+
+      } catch (error) {
+        console.error(
+          `No fue posible cargar la imagen de la tarea ${task.id}:`,
+          error,
+        );
+      }
+    }
+
+    // Actualiza las imágenes que se muestran en el listado.
+    this.taskImages = images;
+  }
+
+  /**
+   * Cierra la sesión y regresa a la pantalla de Login.
+   */
+  async logout(): Promise<void> {
+    await this.authService.logout();
+
+    this.currentUserId = null;
+    this.task = [];
+    this.taskImages = {};
+
+    await this.cancelEdit();
+
+    await this.router.navigate(['/login']);
+  }
+
+  // Funciones para manejar la selección de imágenes.
+
+  /**
+   * Abre la cámara del dispositivo para tomar una fotografía.
+   */
+  async takePicture(): Promise<void> {
+    await this.chooseImage('camera');
+  }
+
+  /**
+   * Abre la galería para seleccionar una imagen existente.
+   */
+  async selectPicture(): Promise<void> {
+    await this.chooseImage('gallery');
+  }
+
+  //Remover imagen temporal
+
+  async removeImage(): Promise<void> {
+    // Elimina solamente las imágenes temporales.
+    if (
+      this.selectedImagePath &&
+      this.selectedImagePath !== this.originalImagePath
+    ) {
+      try {
+        await this.imageService.deletePicture(this.selectedImagePath);
+      } catch (error) {
+        console.error('No fue posible eliminar la imagen:', error);
+        this.imageErrorMessage =
+        'No fue posible eliminar la imagen seleccionada.';
+        return;
+      }
+    }
+
+  // Quita la imagen de la vista previa y del formulario.
+  this.selectedImagePath = null;
+  this.imagePreview = null;
+  this.imageErrorMessage = '';
+
+  this.cdr.detectChanges();
+}
+
+  /**
+   * Obtiene una imagen desde la cámara o galería
+   * y prepara su vista previa para la tarea.
+   */
+  private async chooseImage(
+    source: 'camera' | 'gallery',
+  ): Promise<void> {
+    try {
+      const imagePath = source === 'camera'
+        ? await this.imageService.takePicture()
+        : await this.imageService.selectPicture();
+
+      // Si el usuario cancela la selección, no realiza cambios.
+      if (!imagePath) {
+        return;
+      }
+
+      // Elimina una imagen temporal anterior si fue reemplazada.
+      if (
+        this.selectedImagePath &&
+        this.selectedImagePath !== this.originalImagePath
+      ) {
+        await this.imageService.deletePicture(this.selectedImagePath);
+      }
+
+      // Guarda la ruta de la imagen seleccionada.
+      this.selectedImagePath = imagePath;
+
+      // Genera la dirección necesaria para mostrar la vista previa.
+      this.imagePreview = await this.imageService.getPicture(imagePath);
+      this.imageErrorMessage = '';
+      // Actualiza la vista para mostrar inmediatamente la imagen.
+      this.cdr.detectChanges();
+
+    } catch (error) {
+      console.error('Error al seleccionar la imagen:', error);
+      this.imageErrorMessage =
+        'No fue posible cargar la imagen. Inténtalo nuevamente.';
+    }
+  }
+
+  /**
+   * Agrega una tarea o guarda los cambios de una tarea existente.
+   */
+  async addTask(): Promise<void> {
+    // El título es obligatorio, pero la descripción es opcional.
+    if (!this.currentUserId || !this.newTitle.trim()) {
+      return;
+    }
+
     if (this.editingTaskId !== null) {
-      this.task = this.task.map(task =>
-        task.id === this.editingTaskId
-          ? { ...task, title: this.newTitle, description: this.newDescription }
-          : task
+
+      // Actualiza la tarea verificando también su propietario.
+      const updatedTask: Task = {
+        id: this.editingTaskId,
+        userId: this.currentUserId,
+        title: this.newTitle.trim(),
+        description: this.newDescription.trim(),
+        imagePath: this.selectedImagePath ?? undefined,
+      };
+
+      await this.taskService.updateTask(
+        this.currentUserId,
+        updatedTask,
       );
+
+      // Si se reemplazó la imagen, elimina el archivo anterior.
+      if (
+        this.originalImagePath &&
+        this.originalImagePath !== this.selectedImagePath
+      ) {
+        try {
+          await this.imageService.deletePicture(this.originalImagePath);
+        } catch (error) {
+          console.error('No fue posible eliminar la imagen anterior:', error);
+        }
+      }
     } else {
-      this.task.push({
+      // Intenta obtener la ubicación actual del dispositivo.
+      const location = await this.locationService.getCurrentLocation();
+      // Construye una tarea asociada al usuario actual.
+      const newTask: Task = {
         id: Date.now(),
-        title: this.newTitle,
-        description: this.newDescription
-      });
+        userId: this.currentUserId,
+        title: this.newTitle.trim(),
+        description: this.newDescription.trim(),
+        imagePath: this.selectedImagePath ?? undefined,
+        // Guarda las coordenadas si están disponibles.
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      };
+      await this.taskService.addTask(newTask);
     }
 
-    // Limpia el formulario y finaliza el modo de edición.
-    this.newTitle = "";
-    this.newDescription = "";
-    this.editingTaskId = null;
+    // Actualiza la lista después de guardar los cambios.
+    this.task = await this.taskService.getTasks(this.currentUserId);
+
+    // Conserva la imagen guardada antes de limpiar el formulario.
+    this.originalImagePath = this.selectedImagePath;
+
+    // Actualiza las imágenes visibles en el listado.
+    await this.loadTaskImages();
+
+    await this.cancelEdit();
+
+    this.cdr.detectChanges();
   }
 
-  // Quita de la lista la tarea que coincide con el ID recibido.
-  deleteTask(id: number) {
-    this.task = this.task.filter(task => task.id !== id);
-  }
-
-  // Carga los datos de la tarea en el formulario para editarlos.
-  editTask(task: Task) {
-    if (this.editingTaskId === task.id) {
-      this.cancelEdit();
+  /**
+   * Elimina una tarea perteneciente al usuario actual.
+   * También elimina su imagen asociada, si existe.
+   */
+  async deleteTask(id: number): Promise<void> {
+    if (!this.currentUserId) {
       return;
     }
+
+    // Busca la tarea para recuperar la ruta de su imagen.
+    const taskToDelete = this.task.find(task => task.id === id);
+
+    await this.taskService.deleteTask(this.currentUserId, id);
+
+    // Elimina el archivo de imagen asociado, si existe.
+    if (taskToDelete?.imagePath) {
+      try {
+        await this.imageService.deletePicture(taskToDelete.imagePath);
+      } catch (error) {
+        console.error('No fue posible eliminar la imagen de la tarea:', error);
+      }
+    }
+
+    // Actualiza la lista después de eliminar la tarea.
+    this.task = await this.taskService.getTasks(this.currentUserId);
+
+    // Actualiza las imágenes visibles en el listado.
+    await this.loadTaskImages();
+
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Carga los datos de una tarea en el formulario para editarlos.
+   */
+  async editTask(task: Task): Promise<void> {
+
+    // Impide editar tareas de otra cuenta.
+    if (!this.currentUserId || task.userId !== this.currentUserId) {
+      return;
+    }
+
+    if (this.editingTaskId === task.id) {
+      await this.cancelEdit();
+      return;
+    }
+
+    // Limpia cualquier selección temporal anterior.
+    await this.cancelEdit();
 
     this.newTitle = task.title;
     this.newDescription = task.description;
     this.editingTaskId = task.id;
+
+    // Recupera la imagen original de la tarea, si existe.
+    this.originalImagePath = task.imagePath ?? null;
+    this.selectedImagePath = task.imagePath ?? null;
+
+    try {
+      this.imagePreview = task.imagePath
+        ? await this.imageService.getPicture(task.imagePath)
+        : null;
+
+    } catch (error) {
+      console.error('Error al cargar la imagen de la tarea:', error);
+      this.imageErrorMessage =
+        'No fue posible mostrar la imagen guardada.';
+    }
+
+    this.cdr.detectChanges();
   }
 
-  // Descarta la edición y deja el formulario vacío.
-  cancelEdit() {
-    this.newTitle = "";
-    this.newDescription = "";
+  /**
+   * Descarta la edición y deja el formulario vacío.
+   * También elimina imágenes temporales que no fueron guardadas.
+   */
+  async cancelEdit(): Promise<void> {
+
+    // Elimina la imagen seleccionada si es diferente de la original.
+    if (
+      this.selectedImagePath &&
+      this.selectedImagePath !== this.originalImagePath
+    ) {
+      try {
+        await this.imageService.deletePicture(this.selectedImagePath);
+      } catch (error) {
+        console.error('No fue posible eliminar la imagen temporal:', error);
+      }
+    }
+
+    // Limpia los campos del formulario.
+    this.newTitle = '';
+    this.newDescription = '';
     this.editingTaskId = null;
+
+    // Limpia los datos de la imagen.
+    this.imagePreview = null;
+    this.selectedImagePath = null;
+    this.originalImagePath = null;
+    this.imageErrorMessage = '';
+
+    this.cdr.detectChanges();
   }
 }

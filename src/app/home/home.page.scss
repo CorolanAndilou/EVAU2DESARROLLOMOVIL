@@ -1,35 +1,5 @@
-// Estilos base
-#container {
-  text-align: center;
 
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-// Ajustes de texto del contenedor
-#container strong {
-  font-size: 20px;
-  line-height: 26px;
-}
-
-#container p {
-  font-size: 16px;
-  line-height: 22px;
-
-  color: #8c8c8c;
-
-  margin: 0;
-}
-
-// Enlaces sin subrayado dentro del contenedor
-#container a {
-  text-decoration: none;
-}
-
-// Colores de la paleta rosada
+/* Variables de colores propias de la pantalla Home. */
 :host {
   --app-page-background: #fff7fa;
   --app-header-background: #fce8ef;
@@ -40,7 +10,7 @@
   --app-border-color: #f0d5df;
 }
 
-// Fondo y texto de la página y la barra superior
+/* Fondo y barra superior. */
 ion-content {
   --background: var(--app-page-background);
 }
@@ -50,11 +20,19 @@ ion-toolbar {
   --color: var(--app-heading-color);
 }
 
-// Colores de las filas, campos y lista
+/* Filas, campos y listas. */
 ion-item {
   --background: var(--app-card-background);
   --color: var(--app-text-color);
   --border-color: var(--app-border-color);
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+}
+
+ion-list {
+  background: transparent;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 ion-input {
@@ -63,21 +41,86 @@ ion-input {
   --highlight-color-valid: var(--ion-color-primary);
 }
 
-ion-list {
-  background: transparent;
+/* Títulos y descripciones. */
+h1,
+h3,
+h4 {
+  color: var(--app-heading-color);
 }
 
-// Colores de títulos y descripciones
-h1,
 h3 {
-  color: var(--app-heading-color);
+  margin-top: 12px;
+  margin-bottom: 14px;
+}
+
+h4 {
+  margin-bottom: 10px;
 }
 
 ion-label p {
   color: var(--app-muted-color);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-// Sustituye la paleta por tonos oscuros cuando el dispositivo usa modo oscuro
+/* Fecha y hora de creación de cada tarea. */
+.task-date {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--app-muted-color);
+}
+
+/* Contenedor de las opciones de imagen. */
+.image-section {
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 12px;
+  background: var(--app-card-background);
+}
+
+.image-section ion-button {
+  margin-top: 8px;
+}
+
+/* Vista previa de la imagen antes de guardar. */
+.image-preview {
+  margin-top: 15px;
+}
+
+.image-preview img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--app-page-background);
+  border: 1px solid var(--app-border-color);
+}
+
+/* Imagen guardada dentro de cada tarea. */
+.task-image {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  margin-top: 10px;
+  border-radius: 10px;
+  background: var(--app-page-background);
+  border: 1px solid var(--app-border-color);
+}
+
+/* Mensaje de error al seleccionar o cargar imágenes. */
+.image-error {
+  color: var(--ion-color-danger);
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+/* Ajustes para dispositivos con modo oscuro. */
 @media (prefers-color-scheme: dark) {
   :host {
     --app-page-background: #21191d;
