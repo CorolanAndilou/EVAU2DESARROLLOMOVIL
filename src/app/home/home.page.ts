@@ -75,7 +75,7 @@ export class HomePage {
   // Conserva la imagen original mientras se edita una tarea.
   private originalImagePath: string | null = null;
 
-  // Imágenes que se mostrarán en el listado de tareas.
+  // Direcciones de las imágenes que se mostrarán en el listado.
   taskImages: Record<number, string> = {};
 
   // Mensaje para informar errores relacionados con imágenes.
@@ -103,11 +103,45 @@ export class HomePage {
     // Recupera solamente las tareas del usuario actual.
     this.task = await this.taskService.getTasks(this.currentUserId);
 
-    // Actualiza la vista después de recuperar las tareas.
-    this.cdr.detectChanges();
-
     // Limpia el formulario al entrar a Home.
     await this.cancelEdit();
+
+    // Recupera las imágenes asociadas a las tareas.
+    await this.loadTaskImages();
+
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Carga las imágenes guardadas de todas las tareas del usuario.
+   * Convierte las rutas almacenadas en direcciones que puede mostrar HTML.
+   */
+  private async loadTaskImages(): Promise<void> {
+    const images: Record<number, string> = {};
+
+    for (const task of this.task) {
+
+      // Omite las tareas que no tienen una imagen guardada.
+      if (!task.imagePath) {
+        continue;
+      }
+
+      try {
+        // Convierte la ruta local en una dirección visible para la aplicación.
+        images[task.id] = await this.imageService.getPicture(
+          task.imagePath,
+        );
+
+      } catch (error) {
+        console.error(
+          `No fue posible cargar la imagen de la tarea ${task.id}:`,
+          error,
+        );
+      }
+    }
+
+    // Actualiza las imágenes que se muestran en el listado.
+    this.taskImages = images;
   }
 
   /**
@@ -118,6 +152,7 @@ export class HomePage {
 
     this.currentUserId = null;
     this.task = [];
+    this.taskImages = {};
 
     await this.cancelEdit();
 
@@ -190,6 +225,7 @@ export class HomePage {
     }
 
     if (this.editingTaskId !== null) {
+
       // Actualiza la tarea verificando también su propietario.
       const updatedTask: Task = {
         id: this.editingTaskId,
@@ -209,10 +245,15 @@ export class HomePage {
         this.originalImagePath &&
         this.originalImagePath !== this.selectedImagePath
       ) {
-        await this.imageService.deletePicture(this.originalImagePath);
+        try {
+          await this.imageService.deletePicture(this.originalImagePath);
+        } catch (error) {
+          console.error('No fue posible eliminar la imagen anterior:', error);
+        }
       }
 
     } else {
+
       // Construye una tarea asociada al usuario actual.
       const newTask: Task = {
         id: Date.now(),
@@ -231,27 +272,51 @@ export class HomePage {
     // Conserva la imagen guardada antes de limpiar el formulario.
     this.originalImagePath = this.selectedImagePath;
 
+    // Actualiza las imágenes visibles en el listado.
+    await this.loadTaskImages();
+
     await this.cancelEdit();
+
+    this.cdr.detectChanges();
   }
 
   /**
    * Elimina una tarea perteneciente al usuario actual.
+   * También elimina su imagen asociada, si existe.
    */
   async deleteTask(id: number): Promise<void> {
     if (!this.currentUserId) {
       return;
     }
 
+    // Busca la tarea para recuperar la ruta de su imagen.
+    const taskToDelete = this.task.find(task => task.id === id);
+
     await this.taskService.deleteTask(this.currentUserId, id);
+
+    // Elimina el archivo de imagen asociado, si existe.
+    if (taskToDelete?.imagePath) {
+      try {
+        await this.imageService.deletePicture(taskToDelete.imagePath);
+      } catch (error) {
+        console.error('No fue posible eliminar la imagen de la tarea:', error);
+      }
+    }
 
     // Actualiza la lista después de eliminar la tarea.
     this.task = await this.taskService.getTasks(this.currentUserId);
+
+    // Actualiza las imágenes visibles en el listado.
+    await this.loadTaskImages();
+
+    this.cdr.detectChanges();
   }
 
   /**
    * Carga los datos de una tarea en el formulario para editarlos.
    */
   async editTask(task: Task): Promise<void> {
+
     // Impide editar tareas de otra cuenta.
     if (!this.currentUserId || task.userId !== this.currentUserId) {
       return;
@@ -273,9 +338,18 @@ export class HomePage {
     this.originalImagePath = task.imagePath ?? null;
     this.selectedImagePath = task.imagePath ?? null;
 
-    this.imagePreview = task.imagePath
-      ? await this.imageService.getPicture(task.imagePath)
-      : null;
+    try {
+      this.imagePreview = task.imagePath
+        ? await this.imageService.getPicture(task.imagePath)
+        : null;
+
+    } catch (error) {
+      console.error('Error al cargar la imagen de la tarea:', error);
+      this.imageErrorMessage =
+        'No fue posible mostrar la imagen guardada.';
+    }
+
+    this.cdr.detectChanges();
   }
 
   /**
@@ -283,12 +357,17 @@ export class HomePage {
    * También elimina imágenes temporales que no fueron guardadas.
    */
   async cancelEdit(): Promise<void> {
+
     // Elimina la imagen seleccionada si es diferente de la original.
     if (
       this.selectedImagePath &&
       this.selectedImagePath !== this.originalImagePath
     ) {
-      await this.imageService.deletePicture(this.selectedImagePath);
+      try {
+        await this.imageService.deletePicture(this.selectedImagePath);
+      } catch (error) {
+        console.error('No fue posible eliminar la imagen temporal:', error);
+      }
     }
 
     // Limpia los campos del formulario.
@@ -301,5 +380,7 @@ export class HomePage {
     this.selectedImagePath = null;
     this.originalImagePath = null;
     this.imageErrorMessage = '';
+
+    this.cdr.detectChanges();
   }
 }
