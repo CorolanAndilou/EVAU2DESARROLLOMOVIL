@@ -2,6 +2,7 @@
 import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ImageService } from '../core/services/image.service';
 
 import {
   IonHeader,
@@ -63,9 +64,23 @@ export class HomePage {
   // ID de la tarea en edición; null indica que se está creando una tarea.
   editingTaskId: number | null = null;
 
+  // Imagen seleccionada para la tarea que se está creando o editando.
+imagePreview: string | null = null;
+selectedImagePath: string | null = null;
+
+// Conserva la imagen original mientras se edita una tarea.
+private originalImagePath: string | null = null;
+
+// Imágenes que se mostrarán en el listado de tareas.
+taskImages: Record<number, string> = {};
+
+// Mensaje para informar errores relacionados con imágenes.
+imageErrorMessage = '';
+
   constructor(
   private authService: AuthService,
   private taskService: TaskService,
+  private imageService: ImageService,
   private router: Router,
   private cdr: ChangeDetectorRef,
 ) {
@@ -94,7 +109,7 @@ export class HomePage {
 this.cdr.detectChanges();
 
     // Limpia el formulario al entrar a Home.
-    this.cancelEdit();
+    await this.cancelEdit();
   }
 
   /**
@@ -107,53 +122,120 @@ this.cdr.detectChanges();
     this.currentUserId = null;
     this.task = [];
 
-    this.cancelEdit();
+    await this.cancelEdit();
 
     await this.router.navigate(['/login']);
   }
+
+//funciones para manejar la selección de imágenes
+
+/**
+ * Abre la cámara del dispositivo para tomar una fotografía.
+ */
+async takePicture() {
+  await this.chooseImage('camera');
+}
+
+/**
+ * Abre la galería para seleccionar una imagen existente.
+ */
+async selectPicture() {
+  await this.chooseImage('gallery');
+}
+
+/**
+ * Obtiene una imagen desde la cámara o galería
+ * y prepara su vista previa para la tarea.
+ */
+private async chooseImage(source: 'camera' | 'gallery') {
+  try {
+    const imagePath = source === 'camera'
+      ? await this.imageService.takePicture()
+      : await this.imageService.selectPicture();
+
+    // Si el usuario cancela la selección, no realiza cambios.
+    if (!imagePath) {
+      return;
+    }
+
+    // Elimina una imagen temporal anterior si fue reemplazada.
+    if (
+      this.selectedImagePath &&
+      this.selectedImagePath !== this.originalImagePath
+    ) {
+      await this.imageService.deletePicture(this.selectedImagePath);
+    }
+
+    // Guarda la ruta de la imagen seleccionada.
+    this.selectedImagePath = imagePath;
+
+    // Genera la dirección necesaria para mostrar la vista previa.
+    this.imagePreview = await this.imageService.getPicture(imagePath);
+
+    this.imageErrorMessage = '';
+
+  } catch (error) {
+    console.error('Error al seleccionar la imagen:', error);
+    this.imageErrorMessage = 'No fue posible cargar la imagen. Inténtalo nuevamente.';
+  }
+}
+
 
   /**
    * Agrega una tarea o guarda los cambios de una tarea existente.
    */
   async addTask() {
+      // El título es obligatorio, pero la descripción es opcional.
+  if (!this.currentUserId || !this.newTitle.trim()) {
+    return;
+  }
 
-    // El título es obligatorio, pero la descripción es opcional.
-if (!this.currentUserId || !this.newTitle.trim()) {
-  return;
-}
+  if (this.editingTaskId !== null) {
 
-    if (this.editingTaskId !== null) {
+    // Actualiza la tarea verificando también su propietario.
+    const updatedTask: Task = {
+      id: this.editingTaskId,
+      userId: this.currentUserId,
+      title: this.newTitle.trim(),
+      description: this.newDescription.trim(),
+      imagePath: this.selectedImagePath ?? undefined,
+    };
 
-      // Actualiza la tarea verificando también su propietario.
-      const updatedTask: Task = {
-        id: this.editingTaskId,
-        userId: this.currentUserId,
-        title: this.newTitle.trim(),
-        description: this.newDescription.trim(),
-      };
+    await this.taskService.updateTask(
+      this.currentUserId,
+      updatedTask,
+    );
 
-      await this.taskService.updateTask(
-        this.currentUserId,
-        updatedTask,
-      );
-
-    } else {
-
-      // Construye una tarea asociada al usuario actual.
-      const newTask: Task = {
-        id: Date.now(),
-        userId: this.currentUserId,
-        title: this.newTitle.trim(),
-        description: this.newDescription.trim(),
-      };
-
-      await this.taskService.addTask(newTask);
+    // Si se reemplazó la imagen, elimina el archivo anterior.
+    if (
+      this.originalImagePath &&
+      this.originalImagePath !== this.selectedImagePath
+    ) {
+      await this.imageService.deletePicture(this.originalImagePath);
     }
 
-    // Actualiza la lista después de guardar los cambios.
-    this.task = await this.taskService.getTasks(this.currentUserId);
+  } else {
 
-    this.cancelEdit();
+    // Construye una tarea asociada al usuario actual.
+    const newTask: Task = {
+      id: Date.now(),
+      userId: this.currentUserId,
+      title: this.newTitle.trim(),
+      description: this.newDescription.trim(),
+      imagePath: this.selectedImagePath ?? undefined,
+    };
+
+    await this.taskService.addTask(newTask);
+  }
+
+  // Actualiza la lista después de guardar los cambios.
+  this.task = await this.taskService.getTasks(this.currentUserId);
+
+  // Conserva la imagen guardada antes de limpiar el formulario.
+  this.originalImagePath = this.selectedImagePath;
+
+  await this.cancelEdit();
+
   }
 
   /**
@@ -174,7 +256,7 @@ if (!this.currentUserId || !this.newTitle.trim()) {
   /**
    * Carga los datos de una tarea en el formulario para editarlos.
    */
-  editTask(task: Task) {
+  async editTask(task: Task) {
 
     // Impide editar tareas de otra cuenta.
     if (!this.currentUserId || task.userId !== this.currentUserId) {
@@ -182,7 +264,7 @@ if (!this.currentUserId || !this.newTitle.trim()) {
     }
 
     if (this.editingTaskId === task.id) {
-      this.cancelEdit();
+      await this.cancelEdit();
       return;
     }
 
@@ -194,9 +276,30 @@ if (!this.currentUserId || !this.newTitle.trim()) {
   /**
    * Descarta la edición y deja el formulario vacío.
    */
-  cancelEdit() {
-    this.newTitle = '';
-    this.newDescription = '';
-    this.editingTaskId = null;
+  /**
+ * Descarta la edición y deja el formulario vacío.
+ * También elimina imágenes temporales que no fueron guardadas.
+ */
+async cancelEdit() {
+
+  // Elimina la imagen seleccionada si es diferente de la original.
+  if (
+    this.selectedImagePath &&
+    this.selectedImagePath !== this.originalImagePath
+  ) {
+    await this.imageService.deletePicture(this.selectedImagePath);
   }
+
+  // Limpia los campos del formulario.
+  this.newTitle = '';
+  this.newDescription = '';
+  this.editingTaskId = null;
+
+  // Limpia los datos de la imagen.
+  this.imagePreview = null;
+  this.selectedImagePath = null;
+  this.originalImagePath = null;
+  this.imageErrorMessage = '';
+}
+
 }

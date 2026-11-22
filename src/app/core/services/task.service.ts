@@ -79,6 +79,7 @@ export class TaskService {
       ...tasks[taskIndex],
       title: updatedTask.title,
       description: updatedTask.description,
+      imagePath: updatedTask.imagePath
     };
 
     await this.saveTasks(tasks);
