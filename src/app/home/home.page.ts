@@ -17,10 +17,16 @@ import {
   IonItemSliding,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addOutline, pencilOutline, trashOutline } from 'ionicons/icons';
+import {
+  addOutline,
+  pencilOutline,
+  trashOutline,
+  locationOutline,
+} from 'ionicons/icons';
 
 import { AuthService } from '../core/services/auth.service';
 import { ImageService } from '../core/services/image.service';
+import { LocationService } from '../core/services/location.service';
 import { TaskService } from '../core/services/task.service';
 import type { Task } from '../task.model';
 
@@ -54,6 +60,7 @@ export class HomePage {
   private readonly imageService = inject(ImageService);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly locationService = inject(LocationService);
 
   // Lista de tareas correspondientes al usuario autenticado.
   task: Task[] = [];
@@ -82,7 +89,7 @@ export class HomePage {
   imageErrorMessage = '';
 
   constructor() {
-    addIcons({ trashOutline, addOutline, pencilOutline });
+    addIcons({ trashOutline, addOutline, pencilOutline, locationOutline });
   }
 
   /**
@@ -278,9 +285,9 @@ export class HomePage {
           console.error('No fue posible eliminar la imagen anterior:', error);
         }
       }
-
     } else {
-
+      // Intenta obtener la ubicación actual del dispositivo.
+      const location = await this.locationService.getCurrentLocation();
       // Construye una tarea asociada al usuario actual.
       const newTask: Task = {
         id: Date.now(),
@@ -288,8 +295,10 @@ export class HomePage {
         title: this.newTitle.trim(),
         description: this.newDescription.trim(),
         imagePath: this.selectedImagePath ?? undefined,
+        // Guarda las coordenadas si están disponibles.
+        latitude: location?.latitude,
+        longitude: location?.longitude,
       };
-
       await this.taskService.addTask(newTask);
     }
 

@@ -130,34 +130,53 @@ export class TaskService {
     return parsedTasks;
   }
 
-  /**
-   * Comprueba la estructura de una tarea almacenada.
-   */
-  private isValidTask(value: unknown): value is Task {
+/**
+ * Comprueba la estructura de una tarea almacenada.
+ */
+private isValidTask(value: unknown): value is Task {
 
-    if (typeof value !== 'object' || value === null) {
-      return false;
-    }
-
-    const task = value as Record<string, unknown>;
-
-    return (
-      typeof task['id'] === 'number' &&
-      Number.isFinite(task['id']) &&
-      typeof task['userId'] === 'string' &&
-      task['userId'].length > 0 &&
-      typeof task['title'] === 'string' &&
-      typeof task['description'] === 'string' &&
-      (
-        task['createdAt'] === undefined ||
-        (
-          typeof task['createdAt'] === 'string' &&
-          !Number.isNaN(Date.parse(task['createdAt']))
-        )
-      )
-    );
+  if (typeof value !== 'object' || value === null) {
+    return false;
   }
 
+  const task = value as Record<string, unknown>;
+
+  return (
+    typeof task['id'] === 'number' &&
+    Number.isFinite(task['id']) &&
+    typeof task['userId'] === 'string' &&
+    task['userId'].length > 0 &&
+    typeof task['title'] === 'string' &&
+    typeof task['description'] === 'string' &&
+
+    // Valida la fecha de creación, si existe.
+    (
+      task['createdAt'] === undefined ||
+      (
+        typeof task['createdAt'] === 'string' &&
+        !Number.isNaN(Date.parse(task['createdAt']))
+      )
+    ) &&
+
+    // Permite tareas sin ubicación GPS.
+    (
+      (
+        task['latitude'] === undefined &&
+        task['longitude'] === undefined
+      ) ||
+      (
+        typeof task['latitude'] === 'number' &&
+        Number.isFinite(task['latitude']) &&
+        task['latitude'] >= -90 &&
+        task['latitude'] <= 90 &&
+        typeof task['longitude'] === 'number' &&
+        Number.isFinite(task['longitude']) &&
+        task['longitude'] >= -180 &&
+        task['longitude'] <= 180
+      )
+    )
+  );
+}
   /**
    * Guarda la colección completa de tareas.
    */

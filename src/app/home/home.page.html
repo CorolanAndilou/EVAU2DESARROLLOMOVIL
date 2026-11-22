@@ -135,6 +135,19 @@
               </p>
             }
 
+            <!-- Muestra las coordenadas GPS o indica que no están disponibles. -->
+            @if (task.latitude !== undefined && task.longitude !== undefined) {
+            <p class="task-location">
+              <ion-icon name="location-outline"></ion-icon>
+              Ubicación: {{ task.latitude | number:'1.5-5' }},
+              {{ task.longitude | number:'1.5-5' }}
+            </p>
+            } @else {
+            <p class="task-location">
+              <ion-icon name="location-outline"></ion-icon>
+              Ubicación desconocida
+            </p>
+            }
             <!-- Muestra la imagen guardada, si la tarea tiene una. -->
             @if (taskImages[task.id]) {
               <img [src]="taskImages[task.id]" alt="Imagen de la tarea" class="task-image"/>
