@@ -71,6 +71,10 @@
         <div class="image-preview">
           <p>Vista previa:</p>
           <img [src]="imagePreview" alt="Vista previa de la imagen de la tarea"/>
+          <ion-button expand="block" fill="outline" color="danger" (click)="removeImage()">
+            <ion-icon slot="start" name="trash-outline"></ion-icon>
+            Quitar imagen
+          </ion-button>
         </div>
       }
 
@@ -119,7 +123,18 @@
 
             <p>{{ task.description }}</p>
 
-            <!-- Muestra la imagen guardada, si la tarea tiene una. -->
+            <!-- Muestra la fecha y hora de creación de la tarea. -->
+            @if (task.createdAt) {
+              <p class="task-date">
+                <ion-icon name="calendar-outline"></ion-icon>
+                Creada: {{ task.createdAt | date:'dd/MM/yyyy HH:mm' }}
+              </p>
+            } @else {
+              <p class="task-date">
+                Fecha de creación no disponible
+              </p>
+            }
+
             <!-- Muestra la imagen guardada, si la tarea tiene una. -->
             @if (taskImages[task.id]) {
               <img [src]="taskImages[task.id]" alt="Imagen de la tarea" class="task-image"/>

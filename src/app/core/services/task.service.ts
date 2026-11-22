@@ -1,3 +1,4 @@
+
 import { Injectable } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
 
@@ -10,6 +11,7 @@ import type { Task } from '../../task.model';
  * - Guardar tareas localmente.
  * - Recuperar tareas por usuario.
  * - Crear, editar y eliminar tareas.
+ * - Registrar la fecha y hora de creación.
  * - Evitar modificar tareas pertenecientes a otra cuenta.
  */
 @Injectable({
@@ -22,9 +24,6 @@ export class TaskService {
 
   /**
    * Recupera exclusivamente las tareas de un usuario.
-   *
-   * @param userId Identificador del usuario autenticado.
-   * @returns Lista de tareas pertenecientes al usuario.
    */
   async getTasks(userId: string): Promise<Task[]> {
 
@@ -34,9 +33,7 @@ export class TaskService {
   }
 
   /**
-   * Registra una nueva tarea.
-   *
-   * @param task Datos de la tarea que se desea guardar.
+   * Registra una nueva tarea y su fecha de creación.
    */
   async addTask(task: Task): Promise<void> {
 
@@ -47,7 +44,13 @@ export class TaskService {
       throw new Error('La tarea debe tener un usuario asociado.');
     }
 
-    tasks.push(task);
+    // Registra automáticamente la fecha y hora actuales.
+    const newTask: Task = {
+      ...task,
+      createdAt: new Date().toISOString(),
+    };
+
+    tasks.push(newTask);
 
     await this.saveTasks(tasks);
   }
@@ -55,8 +58,7 @@ export class TaskService {
   /**
    * Actualiza una tarea perteneciente al usuario indicado.
    *
-   * @param userId Identificador del propietario.
-   * @param updatedTask Datos actualizados de la tarea.
+   * Conserva la fecha original de creación.
    */
   async updateTask(
     userId: string,
@@ -79,7 +81,7 @@ export class TaskService {
       ...tasks[taskIndex],
       title: updatedTask.title,
       description: updatedTask.description,
-      imagePath: updatedTask.imagePath
+      imagePath: updatedTask.imagePath,
     };
 
     await this.saveTasks(tasks);
@@ -87,9 +89,6 @@ export class TaskService {
 
   /**
    * Elimina una tarea perteneciente al usuario indicado.
-   *
-   * @param userId Identificador del propietario.
-   * @param taskId Identificador de la tarea.
    */
   async deleteTask(
     userId: string,
@@ -107,9 +106,6 @@ export class TaskService {
 
   /**
    * Recupera todas las tareas almacenadas.
-   *
-   * Este método es privado para evitar que las páginas
-   * accedan directamente a las tareas de otras cuentas.
    */
   private async getAllTasks(): Promise<Task[]> {
 
@@ -151,7 +147,14 @@ export class TaskService {
       typeof task['userId'] === 'string' &&
       task['userId'].length > 0 &&
       typeof task['title'] === 'string' &&
-      typeof task['description'] === 'string'
+      typeof task['description'] === 'string' &&
+      (
+        task['createdAt'] === undefined ||
+        (
+          typeof task['createdAt'] === 'string' &&
+          !Number.isNaN(Date.parse(task['createdAt']))
+        )
+      )
     );
   }
 

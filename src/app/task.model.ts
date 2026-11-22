@@ -7,4 +7,7 @@ export interface Task {
   title: string;
   description: string;
   imagePath?: string;
+
+  // Fecha y hora en que se creó la tarea.
+  createdAt?: string;
 }

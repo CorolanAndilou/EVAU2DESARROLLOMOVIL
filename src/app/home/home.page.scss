@@ -63,6 +63,16 @@ ion-label p {
   overflow-wrap: anywhere;
 }
 
+/* Fecha y hora de creación de cada tarea. */
+.task-date {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--app-muted-color);
+}
+
 /* Contenedor de las opciones de imagen. */
 .image-section {
   margin-top: 20px;

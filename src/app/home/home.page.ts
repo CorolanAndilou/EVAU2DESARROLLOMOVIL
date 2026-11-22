@@ -175,6 +175,32 @@ export class HomePage {
     await this.chooseImage('gallery');
   }
 
+  //Remover imagen temporal
+
+  async removeImage(): Promise<void> {
+    // Elimina solamente las imágenes temporales.
+    if (
+      this.selectedImagePath &&
+      this.selectedImagePath !== this.originalImagePath
+    ) {
+      try {
+        await this.imageService.deletePicture(this.selectedImagePath);
+      } catch (error) {
+        console.error('No fue posible eliminar la imagen:', error);
+        this.imageErrorMessage =
+        'No fue posible eliminar la imagen seleccionada.';
+        return;
+      }
+    }
+
+  // Quita la imagen de la vista previa y del formulario.
+  this.selectedImagePath = null;
+  this.imagePreview = null;
+  this.imageErrorMessage = '';
+
+  this.cdr.detectChanges();
+}
+
   /**
    * Obtiene una imagen desde la cámara o galería
    * y prepara su vista previa para la tarea.
@@ -205,8 +231,9 @@ export class HomePage {
 
       // Genera la dirección necesaria para mostrar la vista previa.
       this.imagePreview = await this.imageService.getPicture(imagePath);
-
       this.imageErrorMessage = '';
+      // Actualiza la vista para mostrar inmediatamente la imagen.
+      this.cdr.detectChanges();
 
     } catch (error) {
       console.error('Error al seleccionar la imagen:', error);
