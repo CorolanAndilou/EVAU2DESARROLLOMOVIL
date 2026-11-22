@@ -42,9 +42,13 @@
     Registrarse
   </ion-button>
 
-  <p *ngIf="errorMessage">{{ errorMessage }}</p>
+  @if (errorMessage) {
+    <p>{{ errorMessage }}</p>
+  }
 
-  <p *ngIf="successMessage">{{ successMessage }}</p>
+  @if (successMessage) {
+    <p>{{ successMessage }}</p>
+  }
 
   <ion-button expand="block" fill="clear" (click)="goToLogin()">
     Volver al inicio de sesión

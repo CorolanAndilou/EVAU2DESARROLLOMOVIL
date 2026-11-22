@@ -1,7 +1,7 @@
-
 import { Injectable } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
-import { Task } from '../../task.model';
+
+import type { Task } from '../../task.model';
 
 /**
  * Servicio responsable de administrar las tareas.

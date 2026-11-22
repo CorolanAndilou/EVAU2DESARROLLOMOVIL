@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Preferences } from '@capacitor/preferences';
-import { User, UserSession } from '../../models/user.model';
+
+import type { User, UserSession } from '../../models/user.model';
 
 /**
  * Servicio responsable de gestionar la autenticación local.

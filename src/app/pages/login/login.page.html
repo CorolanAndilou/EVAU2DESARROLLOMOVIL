@@ -25,9 +25,11 @@
     Iniciar sesión
   </ion-button>
 
-  <p *ngIf="errorMessage" style="color: var(--ion-color-danger);">
-    {{ errorMessage }}
-  </p>
+  @if (errorMessage) {
+    <p style="color: var(--ion-color-danger);">
+      {{ errorMessage }}
+    </p>
+  }
 
   <ion-button expand="block" fill="clear" (click)="goToRegister()">
     Crear una cuenta
